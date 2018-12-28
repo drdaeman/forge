@@ -8,12 +8,21 @@ import yaml
 from forge.tasks import sh, TaskError
 
 
+SOPS_ENV_VARS = (
+    'SOPS_KMS_ARN',
+    'SOPS_PGP_FP',
+    'SOPS_GCP_KMS_IDS',
+    'SOPS_AZURE_KEYVAULT_URL',
+)
+
 def key_check():
-    if not os.getenv('SOPS_KMS_ARN'):
-        raise TaskError("You must obtain the master key and export it in the 'SOPS_KMS_ARN' environment variable")
+    if not any(os.getenv(name) for name in SOPS_ENV_VARS):
+        names = ", ".join(SOPS_ENV_VARS)
+        raise TaskError(
+            "you must configure Sops using one or more environment variables: %s" % names
+        )
 
 def decrypt(secret_file_dir, secret_file_name):
-    key_check()
     secret_file_path = os.path.join(secret_file_dir, secret_file_name)
     temp_secret_file_path = os.path.join(secret_file_dir, "tmp-" + secret_file_name)
     os.rename(secret_file_path, temp_secret_file_path)
@@ -28,10 +37,10 @@ def decrypt_cleanup(secret_file_dir, secret_file_name):
     os.rename(temp_secret_file_path, secret_file_path)
 
 def edit_secret(secret_file_path, create):
-    key_check()
     if not os.path.exists(secret_file_path):
         if not create:
             raise TaskError("no such file: %s" % secret_file_path)
+        key_check()
         content = sh("sops", "--input-type", "binary", "-e", "/dev/null").output
         try:
             with open(secret_file_path, "w") as fd:
@@ -44,7 +53,6 @@ def edit_secret(secret_file_path, create):
         raise TaskError(e)
 
 def view_secret(secret_file_path):
-    key_check()
     try:
         subprocess.check_call(["sops", "--output-type", "binary", "-d", secret_file_path])
     except eventlet.green.subprocess.CalledProcessError, e:

@@ -22,19 +22,8 @@ def key_check():
             "you must configure Sops using one or more environment variables: %s" % names
         )
 
-def decrypt(secret_file_dir, secret_file_name):
-    secret_file_path = os.path.join(secret_file_dir, secret_file_name)
-    temp_secret_file_path = os.path.join(secret_file_dir, "tmp-" + secret_file_name)
-    os.rename(secret_file_path, temp_secret_file_path)
-    decrypted_content = sh("sops", "--output-type", "binary", "-d", temp_secret_file_path).output
-    with open(secret_file_path, "w") as decrypted_file:
-        decrypted_file.write(decrypted_content)
-
-def decrypt_cleanup(secret_file_dir, secret_file_name):
-    secret_file_path = os.path.join(secret_file_dir, secret_file_name)
-    temp_secret_file_path = os.path.join(secret_file_dir, "tmp-" + secret_file_name) 
-    os.remove(secret_file_path)
-    os.rename(temp_secret_file_path, secret_file_path)
+def decrypt(filename):
+    return sh("sops", "--output-type", "binary", "-d", filename).output
 
 def edit_secret(secret_file_path, create):
     if not os.path.exists(secret_file_path):
